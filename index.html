@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Travel Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .neubrutalism {
+            border: 3px solid black;
+            box-shadow: 5px 5px 0px black;
+            transition: all 0.2s ease;
+        }
+        .neubrutalism:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 7px 7px 0px black;
+        }
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="bg-[#f0f0f0] min-h-screen p-4">
+    <div id="loading" class="loading">
+        <div class="bg-white p-4 rounded-lg neubrutalism">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-4xl font-bold mb-8">Smart Travel Planner 🌍</h1>
+        
+        <!-- Trip Form -->
+        <div class="bg-white p-6 mb-8 neubrutalism">
+            <h2 class="text-2xl font-bold mb-4">Create New Trip</h2>
+            <form id="tripForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" id="tripName" placeholder="Trip Name" class="w-full p-2 neubrutalism">
+                    <input type="text" id="hotelDetails" placeholder="Hotel Name & Address" class="w-full p-2 neubrutalism">
+                    <input type="date" id="startDate" class="w-full p-2 neubrutalism">
+                    <input type="date" id="endDate" class="w-full p-2 neubrutalism">
+                </div>
+                <button type="submit" class="bg-[#4CAF50] text-white px-6 py-2 neubrutalism">Create Trip</button>
+            </form>
+        </div>
+
+        <!-- Meeting Form -->
+        <div class="bg-white p-6 mb-8 neubrutalism">
+            <h2 class="text-2xl font-bold mb-4">Schedule Meeting</h2>
+            <form id="meetingForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <select id="tripSelect" class="w-full p-2 neubrutalism" required>
+                        <option value="">Select Trip</option>
+                    </select>
+                    <input type="date" id="meetingDate" class="w-full p-2 neubrutalism" required>
+                    <input type="time" id="meetingTime" class="w-full p-2 neubrutalism" required>
+                    <input type="text" id="clientName" placeholder="Client Name" class="w-full p-2 neubrutalism" required>
+                    <input type="text" id="cityState" placeholder="City & State" class="w-full p-2 neubrutalism" required>
+                    <input type="text" id="companyName" placeholder="Company Name" class="w-full p-2 neubrutalism" required>
+                    <input type="text" id="address" placeholder="Meeting Address" class="w-full p-2 neubrutalism" required>
+                    <input type="text" id="pocName" placeholder="POC Name" class="w-full p-2 neubrutalism" required>
+                    <input type="text" id="pocDesignation" placeholder="POC Designation" class="w-full p-2 neubrutalism" required>
+                    <input type="email" id="pocEmail" placeholder="POC Email" class="w-full p-2 neubrutalism" required>
+                    <input type="tel" id="pocPhone" placeholder="POC Phone" class="w-full p-2 neubrutalism" required>
+                    <textarea id="agenda" placeholder="Meeting Agenda" class="w-full p-2 neubrutalism" rows="3"></textarea>
+                </div>
+                <button type="submit" class="bg-[#2196F3] text-white px-6 py-2 neubrutalism">Schedule Meeting</button>
+            </form>
+        </div>
+
+        <!-- Schedule Display -->
+        <div class="bg-white p-6 neubrutalism">
+            <h2 class="text-2xl font-bold mb-4">Your Schedule</h2>
+            <div id="scheduleDisplay" class="overflow-x-auto">
+                <!-- Schedule will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const appSlug = 'travel-planner-' + Math.random().toString(36).substring(7);
+        let userId = localStorage.getItem('userId') || 'user-' + Math.random().toString(36).substring(7);
+        localStorage.setItem('userId', userId);
+
+        const showLoading = () => document.getElementById('loading').style.display = 'block';
+        const hideLoading = () => document.getElementById('loading').style.display = 'none';
+
+        async function makeApiCall(action, table, data, id = null) {
+            showLoading();
+            try {
+                const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer 4LRaWZmm5STZxagzo5q6u9ORlul2',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        appSlug,
+                        action,
+                        collection: table,
+                        data,
+                        id,
+                        conditions: id ? { _id: id } : {}
+                    })
+                });
+                const result = await response.json();
+                hideLoading();
+                return result;
+            } catch (error) {
+                hideLoading();
+                console.error('API Error:', error);
+                alert('An error occurred. Please try again.');
+            }
+        }
+
+        async function loadTrips() {
+            const result = await makeApiCall('read', 'trips');
+            const tripSelect = document.getElementById('tripSelect');
+            tripSelect.innerHTML = '<option value="">Select Trip</option>';
+            if (result.result.read) {
+                result.result.read.forEach(trip => {
+                    const option = document.createElement('option');
+                    option.value = trip._id;
+                    option.textContent = trip.tripName;
+                    tripSelect.appendChild(option);
+                });
+            }
+        }
+
+        async function loadSchedule() {
+            const result = await makeApiCall('read', 'meetings');
+            const scheduleDisplay = document.getElementById('scheduleDisplay');
+            if (result.result.read) {
+                const meetings = result.result.read;
+                meetings.sort((a, b) => new Date(a.meetingDate) - new Date(b.meetingDate));
+
+                let html = `
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                `;
+
+                meetings.forEach(meeting => {
+                    html += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                ${new Date(meeting.meetingDate).toLocaleDateString()} ${meeting.meetingTime}
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm font-medium text-gray-900">${meeting.clientName}</div>
+                                <div class="text-sm text-gray-500">${meeting.companyName}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-900">${meeting.address}</div>
+                                <div class="text-sm text-gray-500">${meeting.cityState}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-900">${meeting.pocName}</div>
+                                <div class="text-sm text-gray-500">${meeting.pocEmail}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <button onclick="deleteMeeting('${meeting._id}')" class="text-red-600 hover:text-red-900">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+                scheduleDisplay.innerHTML = html;
+            }
+        }
+
+        async function deleteMeeting(id) {
+            if (confirm('Are you sure you want to delete this meeting?')) {
+                await makeApiCall('delete', 'meetings', null, id);
+                loadSchedule();
+            }
+        }
+
+        document.getElementById('tripForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const tripData = {
+                tripName: document.getElementById('tripName').value,
+                hotelDetails: document.getElementById('hotelDetails').value,
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value,
+                userId
+            };
+            await makeApiCall('create', 'trips', tripData);
+            loadTrips();
+            e.target.reset();
+        });
+
+        document.getElementById('meetingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const meetingData = {
+                tripId: document.getElementById('tripSelect').value,
+                meetingDate: document.getElementById('meetingDate').value,
+                meetingTime: document.getElementById('meetingTime').value,
+                clientName: document.getElementById('clientName').value,
+                cityState: document.getElementById('cityState').value,
+                companyName: document.getElementById('companyName').value,
+                address: document.getElementById('address').value,
+                pocName: document.getElementById('pocName').value,
+                pocDesignation: document.getElementById('pocDesignation').value,
+                pocEmail: document.getElementById('pocEmail').value,
+                pocPhone: document.getElementById('pocPhone').value,
+                agenda: document.getElementById('agenda').value,
+                userId
+            };
+
+            // Check for meeting limit
+            const result = await makeApiCall('read', 'meetings');
+            const existingMeetings = result.result.read.filter(m => 
+                m.meetingDate === meetingData.meetingDate
+            );
+
+            if (existingMeetings.length >= 4) {
+                alert('Maximum 4 meetings per day limit reached!');
+                return;
+            }
+
+            await makeApiCall('create', 'meetings', meetingData);
+            loadSchedule();
+            e.target.reset();
+        });
+
+        // Initial load
+        loadTrips();
+        loadSchedule();
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
